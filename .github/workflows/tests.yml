@@ -1,0 +1,29 @@
+name: router-regression
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: docker compose up -d
+      - run: mkdir -p reports && pytest -v --junitxml=reports/junit.xml
+      - name: Save router state with Tcl/Expect
+        if: always()
+        run: |
+          sudo apt-get update && sudo apt-get install -y expect
+          for r in r1 r2 r3; do expect scripts/show_ospf.exp $r; done
+      - name: Router logs
+        if: always()
+        run: docker compose logs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: reports/
+      - if: always()
+        run: docker compose down
