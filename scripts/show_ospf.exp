@@ -1,0 +1,30 @@
+#!/usr/bin/env expect
+# Usage: expect scripts/show_ospf.exp r1
+# Logs into a router's command line, runs two show commands, saves the output.
+
+if {[llength $argv] != 1} {
+    puts "usage: show_ospf.exp <router>"
+    exit 1
+}
+set router [lindex $argv 0]
+set timeout 10
+
+proc wait_for_prompt {router} {
+    expect {
+        "$router# " {}
+        timeout { puts "\nERROR: no prompt from $router"; exit 1 }
+        eof     { puts "\nERROR: $router closed the session"; exit 1 }
+    }
+}
+
+file mkdir reports
+log_file -noappend "reports/$router-ospf.txt"
+
+spawn docker exec -it $router vtysh
+wait_for_prompt $router
+send "show ip ospf neighbor\r"
+wait_for_prompt $router
+send "show ip route ospf\r"
+wait_for_prompt $router
+send "exit\r"
+expect eof
